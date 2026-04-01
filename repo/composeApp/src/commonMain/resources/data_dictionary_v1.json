@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "layouts": [
+    {
+      "name": "offline_order",
+      "version": 1,
+      "fields": [
+        { "key": "customerName", "label": "Customer Name", "type": "text", "masked": false },
+        { "key": "walletRef", "label": "Wallet Ref", "type": "text", "masked": true },
+        { "key": "notes", "label": "Notes", "type": "text", "masked": false }
+      ]
+    }
+  ]
+}

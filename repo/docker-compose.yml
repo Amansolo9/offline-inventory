@@ -1,0 +1,114 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.android
+    working_dir: /workspace
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./:/workspace
+      - gradle-cache:/home/gradle/.gradle
+    command:
+      - bash
+      - -lc
+      - |
+        set -e
+        echo '=== Building APK ==='
+        gradle :composeApp:assembleDebug --no-daemon
+
+        APK_DIR="composeApp/build/outputs/apk/debug"
+        APK_NAME="composeApp-debug.apk"
+        APK_PATH="$$APK_DIR/$$APK_NAME"
+
+        if ! ls "$$APK_DIR/" 2>/dev/null | grep -q "$$APK_NAME"; then
+          echo "ERROR: $$APK_NAME not found in $$APK_DIR"
+          ls -la "$$APK_DIR/" 2>/dev/null || true
+          exit 1
+        fi
+        echo "=== APK built: $$APK_PATH ==="
+
+        ADB="adb -H host.docker.internal -P 5037"
+        echo '=== Checking for device ==='
+        $$ADB devices 2>/dev/null || true
+
+        if $$ADB devices 2>/dev/null | grep -qE '^[0-9A-Za-z].*device$$'; then
+          echo '=== Device found, installing ==='
+          $$ADB install -r "$$APK_PATH" && \
+          $$ADB shell am start -n com.eaglepoint.task136/.MainActivity && \
+          echo '=== Installed and launched ===' || \
+          echo '=== Install failed (APK still available locally) ==='
+        else
+          echo '=== No device detected via host ADB. APK built successfully. ==='
+          echo "    To install manually: adb install -r $$APK_PATH"
+        fi
+
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.android
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    profiles:
+      - dev
+    volumes:
+      - ./:/workspace
+      - gradle-cache:/home/gradle/.gradle
+    command:
+      - bash
+      - -lc
+      - |
+        set -e
+
+        APK_DIR="composeApp/build/outputs/apk/debug"
+        ADB="adb -H host.docker.internal -P 5037"
+
+        has_device() {
+          $$ADB devices 2>/dev/null | grep -qE '^[0-9A-Za-z].*device$$'
+        }
+
+        install_apk() {
+          sleep 1
+          APK_NAME="composeApp-debug.apk"
+          if ls "$$APK_DIR/" 2>/dev/null | grep -q "$$APK_NAME" && has_device; then
+            local hash
+            hash=$$(md5sum "$$APK_DIR/$$APK_NAME" 2>/dev/null | cut -d' ' -f1)
+            if [ "$$hash" != "$$LAST_HASH" ]; then
+              LAST_HASH="$$hash"
+              echo '>>> Installing APK...'
+              $$ADB install -r "$$APK_DIR/$$APK_NAME" && \
+              $$ADB shell am start -n com.eaglepoint.task136/.MainActivity && \
+              echo '>>> App launched.' || \
+              echo '>>> Install failed (continuing).'
+            fi
+          fi
+        }
+
+        LAST_HASH=''
+
+        echo '=== Initial build ==='
+        gradle :composeApp:assembleDebug --no-daemon
+        install_apk
+
+        echo ''
+        echo '=== Watching for changes (edit your code, save, it rebuilds) ==='
+        echo '=== Press Ctrl+C to stop ==='
+        echo ''
+
+        while true; do
+          echo '--- Waiting for file changes (polling every 3s) ---'
+          SNAPSHOT=''
+          while [ -z "$$SNAPSHOT" ]; do
+            sleep 3
+            SNAPSHOT=$$(find shared/src composeApp/src -name '*.kt' -newer "$$APK_DIR/composeApp-debug.apk" 2>/dev/null | head -1)
+          done
+          echo ">>> Change detected: $$SNAPSHOT"
+          gradle :composeApp:assembleDebug --no-daemon 2>&1 | tail -5
+          install_apk
+        done
+
+volumes:
+  gradle-cache:

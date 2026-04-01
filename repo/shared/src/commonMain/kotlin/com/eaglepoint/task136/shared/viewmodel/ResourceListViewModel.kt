@@ -1,0 +1,64 @@
+package com.eaglepoint.task136.shared.viewmodel
+
+import com.eaglepoint.task136.shared.db.ResourceDao
+import com.eaglepoint.task136.shared.db.ResourceEntity
+import com.eaglepoint.task136.shared.services.ValidationService
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+data class ResourceListState(
+    val isLoading: Boolean = false,
+    val resources: List<ResourceEntity> = emptyList(),
+    val error: String? = null,
+)
+
+class ResourceListViewModel(
+    private val resourceDao: ResourceDao,
+    private val validationService: ValidationService,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
+    private var scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val _state = MutableStateFlow(ResourceListState())
+    val state: StateFlow<ResourceListState> = _state.asStateFlow()
+
+    fun loadPage(limit: Int = 5000, offset: Int = 0) {
+        scope.launch(ioDispatcher) {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            try {
+                if (resourceDao.countAll() == 0) {
+                    val allergenOptions = listOf("none", "gluten", "dairy", "nuts", "soy", "eggs", "shellfish")
+                    val seed = (1..5000).map { index ->
+                        ResourceEntity(
+                            id = "res-$index",
+                            name = "Resource $index",
+                            category = if (index % 2 == 0) "Logistics" else "Operations",
+                            availableUnits = index % 12,
+                            unitPrice = (index % 200) + 0.99,
+                            allergens = allergenOptions[index % allergenOptions.size],
+                        )
+                    }
+                    val validated = seed.filter { validationService.validateAllergenFlags(it.allergens) }
+                    resourceDao.upsertAll(validated)
+                }
+
+                val rows = resourceDao.page(limit = limit, offset = offset)
+                _state.value = ResourceListState(isLoading = false, resources = rows)
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(isLoading = false, error = "Failed to load resources: ${e.message}")
+            }
+        }
+    }
+
+    fun clearSessionState() {
+        scope.cancel()
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        _state.value = ResourceListState()
+    }
+}

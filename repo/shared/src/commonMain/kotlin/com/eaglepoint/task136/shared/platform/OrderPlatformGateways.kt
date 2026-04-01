@@ -1,0 +1,44 @@
+package com.eaglepoint.task136.shared.platform
+
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlin.time.Duration.Companion.minutes
+
+interface NotificationGateway {
+    suspend fun scheduleInvoiceReady(invoiceId: String, total: Double)
+}
+
+interface ReceiptGateway {
+    suspend fun shareReceipt(invoiceId: String, customerName: String, lineItems: List<ReceiptLineItem>, total: Double)
+}
+
+class PlatformNotificationGateway(
+    private val scheduler: NotificationScheduler,
+    private val clock: Clock,
+    private val timeZone: TimeZone,
+) : NotificationGateway {
+    override suspend fun scheduleInvoiceReady(invoiceId: String, total: Double) {
+        scheduler.scheduleWithQuietHours(
+            id = "invoice-$invoiceId",
+            title = "Invoice ready",
+            body = "$invoiceId total $${"%.2f".format(total)}",
+            at = clock.now().plus(2.minutes),
+            timeZone = timeZone,
+        )
+    }
+}
+
+class PlatformReceiptGateway(
+    private val receiptService: ReceiptService,
+) : ReceiptGateway {
+    override suspend fun shareReceipt(invoiceId: String, customerName: String, lineItems: List<ReceiptLineItem>, total: Double) {
+        receiptService.generateAndSharePdf(
+            ReceiptData(
+                receiptId = invoiceId,
+                customerName = customerName,
+                lineItems = lineItems,
+                total = total,
+            ),
+        )
+    }
+}
