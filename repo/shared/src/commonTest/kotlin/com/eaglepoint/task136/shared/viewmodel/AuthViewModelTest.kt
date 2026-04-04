@@ -15,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
 
 class AuthViewModelTest {
     private fun createFakeUserDao(): UserDao = object : UserDao {
@@ -167,7 +168,7 @@ class AuthViewModelTest {
             securityRepository = SecurityRepository(clock = mutableClock, userDao = dao),
             authService = authService,
             clock = mutableClock,
-            absoluteSessionLimit = kotlin.time.Duration.Companion.hours(2),
+            absoluteSessionLimit = 2.hours,
             ioDispatcher = Dispatchers.Unconfined,
         )
 

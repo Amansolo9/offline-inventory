@@ -560,7 +560,7 @@ internal class FakeOrderDatabase(
     override fun deviceBindingDao() = throw NotImplementedError()
     override fun governanceDao() = throw NotImplementedError()
     override fun meetingDao() = throw NotImplementedError()
-    override fun createOpenHelper(config: androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration) = throw NotImplementedError()
+    override fun learningDao() = throw NotImplementedError()
     override fun createInvalidationTracker() = throw NotImplementedError()
     override fun clearAllTables() = Unit
 }

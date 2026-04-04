@@ -85,7 +85,7 @@ class OrderFinanceViewModelTest {
     }
 
     @Test
-    fun `split requires quantity >= 2`() {
+    fun `split requires quantity at least 2`() {
         val vm = createVm()
         vm.addDemoItem(Role.Admin, "admin")
         vm.splitFirstItem(Role.Admin)
