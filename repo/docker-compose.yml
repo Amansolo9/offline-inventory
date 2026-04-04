@@ -4,8 +4,13 @@ services:
       context: .
       dockerfile: Dockerfile.android
     working_dir: /workspace
+    user: root
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    environment:
+      - ANDROID_SDK_ROOT=/opt/android-sdk
+      - ANDROID_HOME=/opt/android-sdk
+      - GRADLE_USER_HOME=/home/gradle/.gradle
     volumes:
       - ./:/workspace
       - gradle-cache:/home/gradle/.gradle
@@ -48,10 +53,15 @@ services:
       context: .
       dockerfile: Dockerfile.android
     working_dir: /workspace
+    user: root
     stdin_open: true
     tty: true
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    environment:
+      - ANDROID_SDK_ROOT=/opt/android-sdk
+      - ANDROID_HOME=/opt/android-sdk
+      - GRADLE_USER_HOME=/home/gradle/.gradle
     profiles:
       - dev
     volumes:
