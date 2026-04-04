@@ -63,6 +63,7 @@ class AuthViewModelTest {
 
         assertFalse(vm.state.value.isAuthenticated)
         assertNotNull(vm.state.value.error)
+        Unit
     }
 
     @Test
@@ -90,6 +91,7 @@ class AuthViewModelTest {
 
         assertFalse(vm.state.value.isAuthenticated)
         assertNotNull(vm.state.value.error)
+        Unit
     }
 
     @Test
