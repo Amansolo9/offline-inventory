@@ -9,6 +9,6 @@ All processing is fully offline with no server-side logic; business logic reside
 project_type: mobileapp
 frontend_language: kotlin
 backend_language: none
-frontend_framework: Compose Multiplatform
+frontend_framework: Android Views/Compose Multiplatform
 backend_framework: none
 database: SQLite
