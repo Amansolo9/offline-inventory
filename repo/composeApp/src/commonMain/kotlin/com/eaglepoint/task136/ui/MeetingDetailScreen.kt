@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eaglepoint.task136.shared.rbac.Role
 import com.eaglepoint.task136.shared.viewmodel.MeetingWorkflowViewModel
+import kotlinx.datetime.Clock
 
 private val Green = Color(0xFF00B894)
 private val Purple = Color(0xFF6C5CE7)
@@ -99,6 +100,14 @@ fun MeetingDetailScreen(
                             Text("Agenda", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(meetingState.agenda, style = MaterialTheme.typography.bodyMedium)
                         }
+                        Spacer(Modifier.height(12.dp))
+                        Text("Check-in Required", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(if (meetingState.requireCheckIn) "Yes" else "No", style = MaterialTheme.typography.bodyMedium)
+                        if (meetingState.attachmentPath != null) {
+                            Spacer(Modifier.height(12.dp))
+                            Text("Attachment", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(meetingState.attachmentPath.orEmpty(), style = MaterialTheme.typography.bodySmall, color = Blue)
+                        }
                     }
                 }
             }
@@ -140,9 +149,35 @@ fun MeetingDetailScreen(
                         Text("Deny", fontSize = 12.sp)
                     }
                     FilledTonalButton(onClick = { meetingWorkflowViewModel.checkIn(actorRole); onActivity() },
-                        enabled = canManage, shape = RoundedCornerShape(10.dp),
+                        enabled = canManage && meetingState.requireCheckIn, shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(containerColor = Green.copy(alpha = 0.12f), contentColor = Green)) {
                         Text("Check-in", fontSize = 12.sp)
+                    }
+                    FilledTonalButton(onClick = {
+                            meetingWorkflowViewModel.setRequireCheckIn(actorRole, !meetingState.requireCheckIn)
+                            onActivity()
+                        },
+                        enabled = canApprove, shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = Purple.copy(alpha = 0.12f), contentColor = Purple)) {
+                        Text(if (meetingState.requireCheckIn) "Disable Check-in" else "Enable Check-in", fontSize = 12.sp)
+                    }
+                    FilledTonalButton(onClick = {
+                            meetingWorkflowViewModel.addAttachment("attachment-${Clock.System.now().toEpochMilliseconds()}.jpg", actorRole)
+                            onActivity()
+                        },
+                        enabled = canManage, shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = Blue.copy(alpha = 0.12f), contentColor = Blue)) {
+                        Text("Add Attachment", fontSize = 12.sp)
+                    }
+                    if (meetingState.attachmentPath != null) {
+                        FilledTonalButton(onClick = {
+                                meetingWorkflowViewModel.removeAttachment(actorRole)
+                                onActivity()
+                            },
+                            enabled = canManage, shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(containerColor = Coral.copy(alpha = 0.12f), contentColor = Coral)) {
+                            Text("Remove Attachment", fontSize = 12.sp)
+                        }
                     }
                 }
             }

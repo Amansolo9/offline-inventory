@@ -22,6 +22,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.minutes
 
 class MeetingWorkflowViewModelTest {
     private val fakeMeetingDao = object : MeetingDao {
@@ -103,6 +104,87 @@ class MeetingWorkflowViewModelTest {
         vm.deny(Role.Supervisor)
 
         assertEquals(MeetingStatus.Denied, vm.state.value.status)
+    }
+
+    @Test
+    fun `check-in skipped when requireCheckIn is false`() {
+        val clock = FixedMeetingClock(Instant.parse("2026-03-30T10:00:00Z"))
+        val vm = createVm(clock)
+
+        vm.submitMeeting(clock.now(), requireCheckIn = false)
+        vm.approve(Role.Supervisor)
+        vm.checkIn(Role.Operator)
+
+        assertEquals(MeetingStatus.Approved, vm.state.value.status)
+        assertEquals("Check-in not required for this meeting", vm.state.value.note)
+    }
+
+    @Test
+    fun `supervisor can toggle requireCheckIn`() {
+        val clock = FixedMeetingClock(Instant.parse("2026-03-30T10:00:00Z"))
+        val vm = createVm(clock)
+
+        vm.submitMeeting(clock.now())
+        assertEquals(true, vm.state.value.requireCheckIn)
+
+        vm.setRequireCheckIn(Role.Supervisor, false)
+        assertEquals(false, vm.state.value.requireCheckIn)
+
+        vm.setRequireCheckIn(Role.Supervisor, true)
+        assertEquals(true, vm.state.value.requireCheckIn)
+    }
+
+    @Test
+    fun `operator cannot toggle requireCheckIn`() {
+        val clock = FixedMeetingClock(Instant.parse("2026-03-30T10:00:00Z"))
+        val vm = createVm(clock)
+
+        vm.submitMeeting(clock.now())
+        vm.setRequireCheckIn(Role.Operator, false)
+
+        assertEquals(true, vm.state.value.requireCheckIn)
+        assertEquals("Only supervisors can configure check-in", vm.state.value.note)
+    }
+
+    @Test
+    fun `no-show skipped when requireCheckIn is false`() {
+        val clock = FixedMeetingClock(Instant.parse("2026-03-30T10:00:00Z"))
+        val vm = createVm(clock)
+
+        vm.submitMeeting(clock.now(), requireCheckIn = false)
+        vm.approve(Role.Supervisor)
+        vm.markNoShowIfDue(Role.Supervisor, clock.now().plus(15.minutes))
+
+        assertEquals(MeetingStatus.Approved, vm.state.value.status)
+        assertEquals("No-show tracking not enabled for this meeting", vm.state.value.note)
+    }
+
+    @Test
+    fun `attachment can be added and removed`() {
+        val clock = FixedMeetingClock(Instant.parse("2026-03-30T10:00:00Z"))
+        val vm = createVm(clock)
+
+        vm.submitMeeting(clock.now())
+        vm.addAttachment("photo.jpg", Role.Operator)
+
+        assertEquals("photo.jpg", vm.state.value.attachmentPath)
+        assertEquals("Attachment added", vm.state.value.note)
+
+        vm.removeAttachment(Role.Operator)
+        assertEquals(null, vm.state.value.attachmentPath)
+        assertEquals("Attachment removed", vm.state.value.note)
+    }
+
+    @Test
+    fun `viewer cannot add attachment`() {
+        val clock = FixedMeetingClock(Instant.parse("2026-03-30T10:00:00Z"))
+        val vm = createVm(clock)
+
+        vm.submitMeeting(clock.now())
+        vm.addAttachment("photo.jpg", Role.Viewer)
+
+        assertEquals(null, vm.state.value.attachmentPath)
+        assertEquals("Attachment denied for role", vm.state.value.note)
     }
 }
 

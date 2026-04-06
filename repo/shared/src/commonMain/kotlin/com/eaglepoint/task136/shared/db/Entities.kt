@@ -161,6 +161,8 @@ data class MeetingEntity(
     val agenda: String = "",
     val attachmentPath: String? = null,
     val note: String? = null,
+    @androidx.room.ColumnInfo(defaultValue = "1")
+    val requireCheckIn: Boolean = true,
 )
 
 @Entity(

@@ -434,12 +434,23 @@ fun ResourceListScreen(
                             meetingWorkflowViewModel.deny(actorRole)
                             onActivity()
                         }
-                        ActionChip("Check-in", Blue, canManage) {
+                        ActionChip("Check-in", Blue, canManage && meetingState.requireCheckIn) {
                             meetingWorkflowViewModel.checkIn(actorRole)
                             onActivity()
                         }
-                        ActionChip("No-show", Coral, canApprove) {
+                        ActionChip("No-show", Coral, canApprove && meetingState.requireCheckIn) {
                             meetingWorkflowViewModel.markNoShowIfDue(actorRole)
+                            onActivity()
+                        }
+                        ActionChip(
+                            if (meetingState.requireCheckIn) "Disable Check-in" else "Enable Check-in",
+                            Purple, canApprove,
+                        ) {
+                            meetingWorkflowViewModel.setRequireCheckIn(actorRole, !meetingState.requireCheckIn)
+                            onActivity()
+                        }
+                        ActionChip("Add Attachment", Blue, canManage) {
+                            meetingWorkflowViewModel.addAttachment("attachment-${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}.jpg", actorRole)
                             onActivity()
                         }
                     }

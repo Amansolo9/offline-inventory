@@ -51,6 +51,8 @@ data class MeetingWorkflowState(
     val agenda: String = "",
     val attendees: List<AttendeeInfo> = emptyList(),
     val note: String? = null,
+    val requireCheckIn: Boolean = true,
+    val attachmentPath: String? = null,
 )
 
 class MeetingWorkflowViewModel(
@@ -75,6 +77,7 @@ class MeetingWorkflowViewModel(
         organizerId: String = "",
         actorId: String = organizerId,
         resourceId: String = "res-1",
+        requireCheckIn: Boolean = true,
     ) {
         val meetingId = "mtg-${clock.now().toEpochMilliseconds()}-${(1000..9999).random()}"
         scope.launch(ioDispatcher) {
@@ -103,6 +106,7 @@ class MeetingWorkflowViewModel(
                 meetingStart = start,
                 agenda = agenda,
                 note = "Awaiting supervisor approval",
+                requireCheckIn = requireCheckIn,
             )
             meetingDao.upsert(
                 MeetingEntity(
@@ -115,6 +119,7 @@ class MeetingWorkflowViewModel(
                     status = MeetingStatus.PendingApproval.name,
                     agenda = agenda,
                     note = if (actorId != organizerId) "createdBy:$actorId" else null,
+                    requireCheckIn = requireCheckIn,
                 ),
             )
             notificationGateway.scheduleMeetingNotification(meetingId, "Meeting submitted, awaiting approval")
@@ -189,6 +194,8 @@ class MeetingWorkflowViewModel(
                 agenda = meeting.agenda,
                 attendees = attendees,
                 note = if (canSeeAttendees) null else "Attendee list restricted to Supervisor/Admin",
+                requireCheckIn = meeting.requireCheckIn,
+                attachmentPath = meeting.attachmentPath,
             )
         }
     }
@@ -235,9 +242,14 @@ class MeetingWorkflowViewModel(
             return
         }
         val current = _state.value
-        val start = current.meetingStart ?: return
         if (current.status != MeetingStatus.Approved) return
 
+        if (!current.requireCheckIn) {
+            _state.value = current.copy(note = "Check-in not required for this meeting")
+            return
+        }
+
+        val start = current.meetingStart ?: return
         val valid = validationService.isWithinSupervisorWindow(start, clock.now())
         _state.value = if (valid) {
             current.copy(status = MeetingStatus.CheckedIn, note = "Checked in within +/-10 minutes")
@@ -253,6 +265,10 @@ class MeetingWorkflowViewModel(
             return
         }
         val current = _state.value
+        if (!current.requireCheckIn) {
+            _state.value = current.copy(note = "No-show tracking not enabled for this meeting")
+            return
+        }
         val start = current.meetingStart ?: return
         if (current.status == MeetingStatus.Approved && now > start.plus(10.minutes)) {
             _state.value = current.copy(status = MeetingStatus.NoShow, note = "Marked no-show")
@@ -261,6 +277,7 @@ class MeetingWorkflowViewModel(
     }
 
     private fun scheduleAutoNoShow() {
+        if (!_state.value.requireCheckIn) return
         val start = _state.value.meetingStart ?: return
         scope.launch(ioDispatcher) {
             val waitUntil = start.plus(10.minutes)
@@ -273,6 +290,45 @@ class MeetingWorkflowViewModel(
                 _state.value = current.copy(status = MeetingStatus.NoShow, note = "Auto-marked no-show (10 min past start)")
                 persistStatus(MeetingStatus.NoShow)
             }
+        }
+    }
+
+    fun setRequireCheckIn(role: Role, required: Boolean) {
+        if (!permissionEvaluator.canAccess(role, ResourceType.Meeting, "*", Action.Approve)) {
+            _state.value = _state.value.copy(note = "Only supervisors can configure check-in")
+            return
+        }
+        _state.value = _state.value.copy(requireCheckIn = required, note = if (required) "Check-in required" else "Check-in not required")
+        val meetingId = _state.value.meetingId ?: return
+        scope.launch(ioDispatcher) {
+            val existing = meetingDao.getById(meetingId) ?: return@launch
+            meetingDao.update(existing.copy(requireCheckIn = required))
+        }
+    }
+
+    fun addAttachment(path: String, role: Role) {
+        if (!permissionEvaluator.canAccess(role, ResourceType.Meeting, "*", Action.Write)) {
+            _state.value = _state.value.copy(note = "Attachment denied for role")
+            return
+        }
+        _state.value = _state.value.copy(attachmentPath = path, note = "Attachment added")
+        val meetingId = _state.value.meetingId ?: return
+        scope.launch(ioDispatcher) {
+            val existing = meetingDao.getById(meetingId) ?: return@launch
+            meetingDao.update(existing.copy(attachmentPath = path))
+        }
+    }
+
+    fun removeAttachment(role: Role) {
+        if (!permissionEvaluator.canAccess(role, ResourceType.Meeting, "*", Action.Write)) {
+            _state.value = _state.value.copy(note = "Attachment removal denied for role")
+            return
+        }
+        _state.value = _state.value.copy(attachmentPath = null, note = "Attachment removed")
+        val meetingId = _state.value.meetingId ?: return
+        scope.launch(ioDispatcher) {
+            val existing = meetingDao.getById(meetingId) ?: return@launch
+            meetingDao.update(existing.copy(attachmentPath = null))
         }
     }
 

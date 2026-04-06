@@ -65,6 +65,30 @@ class MeetingDetailFragment : Fragment() {
             authVm.touchSession()
         }
 
+        val toggleCheckInBtn = view.findViewById<MaterialButton>(R.id.toggleCheckInBtn)
+        toggleCheckInBtn.isEnabled = canApprove
+        toggleCheckInBtn.setOnClickListener {
+            val current = meetingVm.state.value.requireCheckIn
+            meetingVm.setRequireCheckIn(role, !current)
+            authVm.touchSession()
+        }
+
+        view.findViewById<MaterialButton>(R.id.addAttachmentBtn).apply {
+            isEnabled = canManage
+            setOnClickListener {
+                meetingVm.addAttachment("attachment-${System.currentTimeMillis()}.jpg", role)
+                authVm.touchSession()
+            }
+        }
+
+        view.findViewById<MaterialButton>(R.id.removeAttachmentBtn).apply {
+            isEnabled = canManage
+            setOnClickListener {
+                meetingVm.removeAttachment(role)
+                authVm.touchSession()
+            }
+        }
+
         meetingVm.loadMeetingDetail(meetingId, role, actorId, delegateFor ?: actorId, delegateFor != null)
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -83,6 +107,21 @@ class MeetingDetailFragment : Fragment() {
                 } else {
                     noteText.visibility = View.VISIBLE
                     noteText.text = state.note
+                }
+
+                view.findViewById<MaterialButton>(R.id.checkInBtn).isEnabled = canManage && state.requireCheckIn
+                view.findViewById<MaterialButton>(R.id.toggleCheckInBtn).text =
+                    if (state.requireCheckIn) "Disable Check-in" else "Enable Check-in"
+
+                val attachmentText = view.findViewById<TextView>(R.id.attachmentText)
+                val removeBtn = view.findViewById<MaterialButton>(R.id.removeAttachmentBtn)
+                if (state.attachmentPath != null) {
+                    attachmentText.visibility = View.VISIBLE
+                    attachmentText.text = "Attachment: ${state.attachmentPath}"
+                    removeBtn.visibility = View.VISIBLE
+                } else {
+                    attachmentText.visibility = View.GONE
+                    removeBtn.visibility = View.GONE
                 }
             }
         }
