@@ -14,9 +14,9 @@ services:
     volumes:
       - ./:/workspace
       - gradle-cache:/home/gradle/.gradle
+    entrypoint: /bin/sh
     command:
-      - bash
-      - -lc
+      - -c
       - |
         set -e
         echo '=== Building APK ==='
@@ -67,9 +67,9 @@ services:
     volumes:
       - ./:/workspace
       - gradle-cache:/home/gradle/.gradle
+    entrypoint: /bin/sh
     command:
-      - bash
-      - -lc
+      - -c
       - |
         set -e
 
@@ -80,11 +80,12 @@ services:
           $$ADB devices 2>/dev/null | grep -qE '^[0-9A-Za-z].*device$$'
         }
 
+        LAST_HASH=''
+
         install_apk() {
           sleep 1
           APK_NAME="composeApp-debug.apk"
           if ls "$$APK_DIR/" 2>/dev/null | grep -q "$$APK_NAME" && has_device; then
-            local hash
             hash=$$(md5sum "$$APK_DIR/$$APK_NAME" 2>/dev/null | cut -d' ' -f1)
             if [ "$$hash" != "$$LAST_HASH" ]; then
               LAST_HASH="$$hash"
@@ -96,8 +97,6 @@ services:
             fi
           fi
         }
-
-        LAST_HASH=''
 
         echo '=== Initial build ==='
         gradle :composeApp:assembleDebug --no-daemon

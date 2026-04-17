@@ -50,7 +50,29 @@ kotlin {
                 implementation("androidx.compose.ui:ui-test-junit4:1.7.5")
             }
         }
+
+        val androidUnitTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation("junit:junit:4.13.2")
+                implementation("org.robolectric:robolectric:4.12.2")
+                implementation("androidx.test:core:1.6.1")
+                implementation("androidx.test.ext:junit:1.2.1")
+                implementation("androidx.fragment:fragment-testing:1.8.4")
+                implementation("androidx.fragment:fragment-testing-manifest:1.8.4")
+                implementation("androidx.recyclerview:recyclerview:1.3.2")
+                implementation("com.google.android.material:material:1.12.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+                implementation("io.insert-koin:koin-core:3.5.6")
+                implementation("io.insert-koin:koin-test:3.5.6")
+            }
+        }
     }
+}
+
+android.testOptions {
+    unitTests.isIncludeAndroidResources = true
+    unitTests.isReturnDefaultValues = true
 }
 
 android {

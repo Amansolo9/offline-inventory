@@ -48,6 +48,7 @@ kotlin {
                 implementation("org.robolectric:robolectric:4.14.1")
                 implementation("androidx.room:room-testing:2.7.0-alpha09")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+                implementation("io.insert-koin:koin-test:3.5.6")
             }
         }
     }

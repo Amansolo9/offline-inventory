@@ -1,4 +1,4 @@
-FROM gradle:8.8-jdk17
+FROM eclipse-temurin:17-jdk-jammy
 
 USER root
 
@@ -6,7 +6,11 @@ ENV ANDROID_SDK_ROOT=/opt/android-sdk
 ENV ANDROID_HOME=/opt/android-sdk
 ENV PATH=${PATH}:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools
 
-RUN apt-get update && apt-get install -y --no-install-recommends wget unzip ca-certificates && rm -rf /var/lib/apt/lists/*
+# eclipse-temurin:17-jdk-jammy is Ubuntu-based (has apt + bash + java).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        wget unzip ca-certificates bash coreutils findutils grep adb \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p ${ANDROID_SDK_ROOT}/cmdline-tools && \
     wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline-tools.zip && \
@@ -20,12 +24,13 @@ RUN yes | sdkmanager --licenses >/dev/null && \
       "platforms;android-34" \
       "build-tools;34.0.0"
 
-RUN chown -R gradle:gradle ${ANDROID_SDK_ROOT}
+# Create a non-root user for builds.
+RUN groupadd -r gradle && useradd -r -g gradle -m -d /home/gradle gradle && \
+    mkdir -p /home/gradle/.gradle && \
+    chown -R gradle:gradle ${ANDROID_SDK_ROOT} /home/gradle
 
 # ADB inside the container will NOT run its own server.
 # It connects to the host's ADB server via host.docker.internal:5037.
-# This avoids authorization conflicts — the host already has your
-# device's RSA key trusted.
 ENV ADB_SERVER_SOCKET=tcp:host.docker.internal:5037
 
 USER gradle
